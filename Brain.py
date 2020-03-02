@@ -5,14 +5,69 @@ from config import NUM_HIDDEN_LAYERS, NODE_TYPES, LEARNING_RATE, MOMENTUM, START
 
 
 def random_value():
+    '''
+        Return a random value represented
+        as a decimal between -1 to 1.
+    '''
     return random.randint(STARTING_MIN, STARTING_MAX)/100.0
 
 
 def activation_function(x):
+    '''
+        Run the activaiton function on the
+        computed node value.
+
+        Note: currently only the sigmoid function is supported
+    '''
     return 1/(1 + math.exp(-x))
 
 
+def nodes_in_inner_layer(num_of_input_nodes, num_of_output_nodes):
+    '''
+        Calculate the number of nodes that should be in
+        each hidden layer.
+        This value is the same for all the hidden 
+        layers of the black box.
+    '''
+    return round((2/3) * num_of_input_nodes) + num_of_output_nodes
+
+
+def count_nodes(training_data):
+    '''
+        Returns the number of input values and output values
+        as a tuple.
+
+        @param training_data: list of data to train the network with
+    '''
+    try:
+        first_set = training_data[0]
+    except IndexError:
+        sys.exit("No training data was supplied, quitting...")
+
+    input_data = first_set.get('input', None)
+    output_data = first_set.get('output', None)
+
+    if (not input_data) or (not output_data):
+        sys.exit("Invalid data set format: {0}".format(first_set))
+
+    return (len(input_data), len(output_data))
+
+
+def calculate_error(actual_value, computed_value):
+    '''
+        Calculate the error between expected and computed
+        values.
+    '''
+    difference = actual_value - computed_value
+    error = (difference ** 2) / 2
+    return difference, error
+
+
 class NeuralNode:
+    '''
+        Class representing a node in any layer of the
+        neural network.
+    '''
 
     def __init__(self, layer, identifier, node_type):
         self.layer = layer
@@ -21,14 +76,14 @@ class NeuralNode:
         self.bias = random_value()
         self.weights = []
 
-    def assign_bias(self):
-        pass
-
     def __str__(self):
         return 'Layer {0}, Node {1} - Type: {2}, Bias: {3}'.format(self.layer, self.identifier, self.node_type, self.bias)
 
 
 class Weight:
+    '''
+        Class representing the weight between two nodes.
+    '''
 
     def __init__(self, starting_node_index, ending_node_index):
         self.starting_node_index = starting_node_index
@@ -40,71 +95,61 @@ class Weight:
 
 
 class Brain:
+    '''
+        Class representing the 'brain' or computation
+        engine of the neural network. All major functions
+        are called on this class.
+    '''
 
     def __init__(self):
+        # 2-D array where each layer is a list of nodes
         self.inner_layers = []
+        # array of output nodes
         self.output_nodes = []
+        # number of input values
+        self.num_input_nodes = 0
+        # number of output values
+        self.num_output_nodes = 0
+        # number of nodes in the hidden layer
+        self.num_inner_layer_nodes = 0
+        # whether or not the network is trained
+        self.is_trained = False
         # DEBUG
         self.iteration_index = 0
-        # DEBUG
-        self.iterations = 0
 
     def run(self, data_set):
-        computed_values = self.train_data_set({'input': data_set})
-        return computed_values[1]
+        '''
+            Run the given data_set through the neural network.
+        '''
+        if (self.is_trained):
+            computed_values = self.train_data_set({'input': data_set})
+            return computed_values[1]
+        else:
+            print("Please train the neural network first...")
 
     def train(self, training_data, **kwargs):
-        iterations = kwargs.get('iterations', 1)
-        # DEBUG
-        self.iterations = iterations
+        '''
+            Train the neural network with a set of training data.
 
-        # Initialize the 'black box'
-        for i in range(0, NUM_HIDDEN_LAYERS):
-            # Add a layer of nodes (as a list)
-            self.inner_layers.append([])
+            @param training_data: input and outputs to train the network
+                                  ( i.e. [{ 'input': [], 'output': [] }])
+            @param **kwargs: optional parameters to configure the network
+                                iterations: int (number of iterations)
+        '''
+        # Should reset the neural network if trying to re-train
+        if (self.is_trained):
+            self.reset()
+
+        iterations = kwargs.get('iterations', 1)
 
         # Calculate the number of nodes in the hidden layer
-        num_input_nodes, num_output_nodes = self.count_nodes(training_data)
-        nodes_per_layer = self.nodes_in_inner_layer(
+        self.num_input_nodes, self.num_output_nodes = count_nodes(
+            training_data)
+        self.num_inner_layer_nodes = nodes_in_inner_layer(
             num_input_nodes, num_output_nodes)
-        # print("Running training data with {0} nodes in the inner layer.".format(
-        #     nodes_per_layer))
 
-        # Build the first layer of the black box (usually the only layer)
-        for inner_node_index in range(0, nodes_per_layer):
-            # Create the inner layer node
-            node = NeuralNode(1, inner_node_index, NODE_TYPES['INNER'])
-            # Create initial weights to the first inner layer node
-            for input_node_index in range(0, num_input_nodes):
-                node.weights.append(Weight(input_node_index, inner_node_index))
-            # Append the node to the current layer
-            self.inner_layers[0].append(node)
-
-        # Build each additional inner layer of the black box
-        # (if any) and add weights to the inner nodes
-        for inner_layer_index in range(1, NUM_HIDDEN_LAYERS):
-            for inner_node_index in range(0, nodes_per_layer):
-                # Create the inner layer node
-                node = NeuralNode(inner_layer_index + 1,
-                                  inner_node_index, NODE_TYPES['INNER'])
-                # Create initial weights to the inner layer node
-                for input_node_index in range(0, nodes_per_layer):
-                    node.weights.append(
-                        Weight(input_node_index, inner_node_index))
-            # Append the node to the current layer
-            self.inner_layers[inner_layer_index].append(node)
-
-        # Build our output layer of brain
-        for output_node_index in range(0, num_output_nodes):
-            # Create the output node
-            node = NeuralNode(NUM_HIDDEN_LAYERS + 1,
-                              output_node_index, NODE_TYPES['OUTPUT'])
-            # Create initial weights to the output layer node
-            for inner_node_index in range(0, nodes_per_layer):
-                node.weights.append(
-                    Weight(inner_node_index, output_node_index))
-            # Append the node to the list of output nodes
-            self.output_nodes.append(node)
+        self.initialize_hidden_layers()
+        self.initialize_output_layer()
 
         for i in range(1, iterations + 1):
             # DEBUG
@@ -114,10 +159,71 @@ class Brain:
                     "\n===============ITERATION {0}===============".format(i))
             for data_set in training_data:
                 computed_values = self.train_data_set(data_set)
-                # print("All computed values: {0}".format(computed_values))
                 self.propagate_error(data_set, computed_values)
 
+        # Mark this network as trained
+        self.is_trained = True
+
+    def reset(self):
+        '''
+            Reset the initial values of the brain.
+        '''
+        if (self.is_trained):
+            self.inner_layers = []
+            self.output_nodes = []
+            self.num_input_nodes = 0
+            self.num_output_nodes = 0
+            self.num_inner_layer_nodes = 0
+            self.is_trained = False
+            # DEBUG
+            self.iteration_index = 0
+
+    def initialize_hidden_layers(self):
+        '''
+            Build the inner layers of the black box
+            (or hidden layers) with weights and biases.
+        '''
+        for i in range(0, NUM_HIDDEN_LAYERS):
+            # initialize empty inner layer array
+            self.inner_layers.append([])
+
+        for inner_layer_index in range(0, NUM_HIDDEN_LAYERS):
+            for inner_node_index in range(0, self.num_inner_layer_nodes):
+                # Create the inner layer node
+                node = NeuralNode(inner_layer_index + 1,
+                                  inner_node_index, NODE_TYPES['INNER'])
+                nodes_per_layer = if inner_layer_index == 0 else self.num_inner_layer_nodes
+                for input_node_index in range(0, nodes_per_layer):
+                    # Create initial weights to the inner layer node
+                    node.weights.append(
+                        Weight(input_node_index, inner_node_index))
+            # Append the node to the current layer
+            self.inner_layers[inner_layer_index].append(node)
+
+    def initialize_output_layer(self):
+        '''
+            Initialize the output layer of the neural
+            network with weights and biases.
+        '''
+        for output_node_index in range(0, self.num_output_nodes):
+            # Create the output node
+            node = NeuralNode(NUM_HIDDEN_LAYERS + 1,
+                              output_node_index, NODE_TYPES['OUTPUT'])
+            # Create initial weights to the output layer node
+            for inner_node_index in range(0, self.num_inner_layer_nodes):
+                node.weights.append(
+                    Weight(inner_node_index, output_node_index))
+            # Append the node to the list of output nodes
+            self.output_nodes.append(node)
+
     def train_data_set(self, data_set):
+        '''
+            Perform a forward pass to compute output values
+            based on current weights and biases
+
+            @param data_set: current input and output data
+                             ( i.e. { 'input': [], 'output': [] } )
+        '''
         previous_layer_values = []
         current_layer_values = []
         calculated_values_per_layer = []
@@ -175,7 +281,7 @@ class Brain:
         errors = []
         for node_value_index in range(0, len(layer_value_set)):
             # print("	-->	node: {0}".format(node_value_index))
-            difference, error = self.calculate_error(
+            difference, error = calculate_error(
                 output_data[node_value_index], layer_value_set[node_value_index])
             errors.append([difference, error])
             total_error = total_error + error
@@ -240,26 +346,3 @@ class Brain:
         calculated_node_value = activation_function(calculated_node_value)
         # print("		sigmoid the node value: {0}".format(calculated_node_value))
         return calculated_node_value
-
-    def calculate_error(self, node_value, computed_value):
-        difference = node_value - computed_value
-        error = (difference ** 2) / 2
-        # print("		error: {0}".format(error))
-        return difference, error
-
-    def nodes_in_inner_layer(self, num_of_input_nodes, num_of_output_nodes):
-        return round((2/3) * num_of_input_nodes) + num_of_output_nodes
-
-    def count_nodes(self, training_data):
-        try:
-            first_set = training_data[0]
-        except IndexError:
-            sys.exit("No training data was supplied, quitting...")
-
-        input_data = first_set.get('input', None)
-        output_data = first_set.get('output', None)
-
-        if (not input_data) or (not output_data):
-            sys.exit("Invalid data set format: {0}".format(first_set))
-
-        return (len(input_data), len(output_data))

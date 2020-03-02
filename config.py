@@ -10,9 +10,11 @@ LEARNING_RATE = 0.3
 MOMENTUM = 0.1
 
 # What value to start at when generating random weights/biases
+# (MUST BE >= -100)
 STARTING_MIN = 0
 
 # What value to end at when generating random weights/biases
+# (MUST BE <= 100)
 STARTING_MAX = 100
 
 # Values to use for examples

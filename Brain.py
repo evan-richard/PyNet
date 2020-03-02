@@ -49,6 +49,10 @@ class Brain:
         # DEBUG
         self.iterations = 0
 
+    def run(self, data_set):
+        computed_values = self.train_data_set({'input': data_set})
+        return computed_values[1]
+
     def train(self, training_data, **kwargs):
         iterations = kwargs.get('iterations', 1)
         # DEBUG
@@ -105,14 +109,15 @@ class Brain:
         for i in range(1, iterations + 1):
             # DEBUG
             self.iteration_index = i
-            print("\n===============ITERATION {0}===============".format(i))
-            for j in range(0, len(training_data)):
-                computed_values = self.train_data_set(training_data[j], j)
-                if (self.iteration_index % 10000 == 0):
-                    print("All computed values: {0}".format(computed_values))
-                self.propagate_error(training_data[j], computed_values)
+            if (self.iteration_index % 1000 == 0):
+                print(
+                    "\n===============ITERATION {0}===============".format(i))
+            for data_set in training_data:
+                computed_values = self.train_data_set(data_set)
+                # print("All computed values: {0}".format(computed_values))
+                self.propagate_error(data_set, computed_values)
 
-    def train_data_set(self, data_set, training_data_index):
+    def train_data_set(self, data_set):
         previous_layer_values = []
         current_layer_values = []
         calculated_values_per_layer = []
@@ -176,8 +181,7 @@ class Brain:
             total_error = total_error + error
 
         # Calculate the delta for each node value
-        if (self.iteration_index == self.iterations):
-            print("TOTAL Error = {0}".format(total_error))
+        # print("TOTAL Error = {0}".format(total_error))
         for node_value_index in range(0, len(errors)):
             # print("	-->	node: {0}".format(node_value_index))
             # First take the negative difference between the computed and expected values

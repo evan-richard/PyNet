@@ -14,3 +14,6 @@ STARTING_MIN = 0
 
 # What value to end at when generating random weights/biases
 STARTING_MAX = 100
+
+# Values to use for examples
+SAMPLE_ITERATIONS = 50000

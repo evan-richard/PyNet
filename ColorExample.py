@@ -1,14 +1,14 @@
 from Brain import Brain
 from config import SAMPLE_ITERATIONS
 
-# Input: r, g, b, Output: white, black
+# Input: r, g, b background color, Output: desired text color
 data = [
-    {'input': [0.62, 0.72, 0.88], 'output': [1, 0]},
-    {'input': [0.1, 0.84, 0.72], 'output': [1, 0]},
-    {'input': [0.33, 0.24, 0.29], 'output': [0, 1]},
-    {'input': [0.74, 0.78, 0.86], 'output': [1, 0]},
-    {'input': [0.31, 0.35, 0.41], 'output': [0, 1]},
-    {'input': [0.59, 1.0, 0.35], 'output': [0, 1]}
+    {'input': dict(r=0.62, g=0.72, b=0.88), 'output': dict(white=1, black=0)},
+    {'input': dict(r=0.1, g=0.84, b=0.72), 'output': dict(white=1, black=0)},
+    {'input': dict(r=0.33, g=0.24, b=0.29), 'output': dict(white=0, black=1)},
+    {'input': dict(r=0.74, g=0.78, b=0.86), 'output': dict(white=1, black=0)},
+    {'input': dict(r=0.31, g=0.35, b=0.41), 'output': dict(white=0, black=1)},
+    {'input': dict(r=0.59, g=1.0, b=0.35), 'output': dict(white=0, black=1)}
 ]
 
 brain = Brain()

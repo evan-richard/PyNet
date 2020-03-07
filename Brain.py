@@ -278,7 +278,8 @@ class Brain:
         input_data = data_set.get('input', None)
         if (not input_data):
             sys.exit("Invalid data set format: {0}".format(data_set))
-        input_data = input_data.values() if type(input_data) != list else input_data
+        input_data = list(input_data.values()) if type(
+            input_data) != list else input_data
 
         previous_layer_values = input_data.copy()
 
@@ -319,13 +320,14 @@ class Brain:
         input_data = data_set.get('input', None)
         if (not input_data):
             sys.exit("Invalid data set format: {0}".format(data_set))
-        input_data = input_data.values() if type(input_data) != list else input_data
+        input_data = list(input_data.values()) if type(
+            input_data) != list else input_data
 
         # Retrieve the output data from the data set as a list of values
         output_data = data_set.get('output', None)
         if (not output_data):
             sys.exit("Invalid data set format: {0}".format(data_set))
-        output_data = output_data.values() if type(
+        output_data = list(output_data.values()) if type(
             output_data) != list else output_data
 
         # We want to loop backwards through the computed values to

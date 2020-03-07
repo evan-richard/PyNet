@@ -1,7 +1,7 @@
 import sys
 import random
 import math
-from config import NUM_HIDDEN_LAYERS, NODE_TYPES, LEARNING_RATE, MOMENTUM, STARTING_MIN, STARTING_MAX
+from config import NUM_HIDDEN_LAYERS, NODE_TYPES, LEARNING_RATE, MOMENTUM, STARTING_MIN, STARTING_MAX, DEBUG
 
 
 def random_value():
@@ -60,7 +60,49 @@ def calculate_error(actual_value, computed_value):
     '''
     difference = actual_value - computed_value
     error = (difference ** 2) / 2
-    return difference, error
+    return error
+
+
+def calculate_node_value(node, previous_layer_values):
+    '''
+        This is the forward pass. Calculate the total net input
+        for the current node, then send it through an activation
+        function.
+
+        @param node: current node
+        @param previous_layer_values: these will either be the input values,
+            or the values computed from the previous layer
+        @return: the computed value of the current node from the forward pass
+    '''
+    calculated_node_value = 0
+
+    if DEBUG:
+        print("START NODE: {0}".format(node.identifier))
+        print("		bias for node {0}: {1}".format(node.identifier, node.bias))
+        print("		weights for node {0}:".format(node.identifier))
+
+    for weight in node.weights:
+        input_value = previous_layer_values[weight.starting_node_index]
+
+        if DEBUG:
+            print("			input value: {0}, weight: {1}".format(
+                input_value, weight.value))
+
+        calculated_node_value = calculated_node_value + \
+            (input_value * weight.value)
+    calculated_node_value = calculated_node_value + node.bias
+
+    if DEBUG:
+        print("		node value for node {0}: {1}".format(
+            node.identifier, calculated_node_value))
+
+    # Run the node value through the activation function
+    calculated_node_value = activation_function(calculated_node_value)
+
+    if DEBUG:
+        print("		sigmoid the node value: {0}".format(calculated_node_value))
+
+    return calculated_node_value
 
 
 class NeuralNode:
@@ -146,7 +188,7 @@ class Brain:
         self.num_input_nodes, self.num_output_nodes = count_nodes(
             training_data)
         self.num_inner_layer_nodes = nodes_in_inner_layer(
-            num_input_nodes, num_output_nodes)
+            self.num_input_nodes, self.num_output_nodes)
 
         self.initialize_hidden_layers()
         self.initialize_output_layer()
@@ -192,13 +234,13 @@ class Brain:
                 # Create the inner layer node
                 node = NeuralNode(inner_layer_index + 1,
                                   inner_node_index, NODE_TYPES['INNER'])
-                nodes_per_layer = if inner_layer_index == 0 else self.num_inner_layer_nodes
+                nodes_per_layer = self.num_input_nodes if inner_layer_index == 0 else self.num_inner_layer_nodes
                 for input_node_index in range(0, nodes_per_layer):
                     # Create initial weights to the inner layer node
                     node.weights.append(
                         Weight(input_node_index, inner_node_index))
-            # Append the node to the current layer
-            self.inner_layers[inner_layer_index].append(node)
+                # Append the node to the current layer
+                self.inner_layers[inner_layer_index].append(node)
 
     def initialize_output_layer(self):
         '''
@@ -218,18 +260,21 @@ class Brain:
 
     def train_data_set(self, data_set):
         '''
-            Perform a forward pass to compute output values
-            based on current weights and biases
+            Run the data set through the computation model
 
             @param data_set: current input and output data
-                             ( i.e. { 'input': [], 'output': [] } )
+                ( i.e. { 'input': [], 'output': [] } )
+            @return: a 2D array representing the computed values of each
+                node in each layer
         '''
         previous_layer_values = []
         current_layer_values = []
         calculated_values_per_layer = []
 
-        # print(
-        #     "---------------Run input set: {0}---------------".format(data_set))
+        if DEBUG:
+            print(
+                "---------------Run input set: {0}---------------".format(data_set))
+
         input_data = data_set.get('input', None)
         if (not input_data):
             sys.exit("Invalid data set format: {0}".format(data_set))
@@ -239,110 +284,126 @@ class Brain:
 
         # Loop through each inner layer of the system
         for inner_layer_index in range(0, NUM_HIDDEN_LAYERS):
-            # print("Beginning layer {0}".format(inner_layer_index + 1))
+            if DEBUG:
+                print("Beginning layer {0}".format(inner_layer_index + 1))
+
             for node in self.inner_layers[inner_layer_index]:
                 current_layer_values.append(
-                    self.calculate_node_value(node, previous_layer_values))
+                    calculate_node_value(node, previous_layer_values))
 
             # save values from the current layer
             previous_layer_values = current_layer_values.copy()
             calculated_values_per_layer.append(current_layer_values.copy())
             current_layer_values = []
 
+        if DEBUG:
+            print("Beginning layer {0}".format(NUM_HIDDEN_LAYERS + 1))
+
         # Loop through each node of the output layer
-        # print("Beginning layer {0}".format(NUM_HIDDEN_LAYERS + 1))
         for node in self.output_nodes:
             current_layer_values.append(
-                self.calculate_node_value(node, previous_layer_values))
+                calculate_node_value(node, previous_layer_values))
 
         calculated_values_per_layer.append(current_layer_values.copy())
         return calculated_values_per_layer
 
     def propagate_error(self, data_set, computed_values):
+        '''
+            Need to back-propagate the errors through the system and
+            adjust the weights appropriately.
+            (Currently this only works for a network with 1 hidden layer)
+        '''
+        total_error = 0
+
+        # Retrieve the input data from the data set as a list of values
+        input_data = data_set.get('input', None)
+        if (not input_data):
+            sys.exit("Invalid data set format: {0}".format(data_set))
+        input_data = input_data.values() if type(input_data) != list else input_data
+
+        # Retrieve the output data from the data set as a list of values
         output_data = data_set.get('output', None)
         if (not output_data):
             sys.exit("Invalid data set format: {0}".format(data_set))
         output_data = output_data.values() if type(
             output_data) != list else output_data
 
-        input_data = data_set.get('input', None)
-        if (not input_data):
-            sys.exit("Invalid data set format: {0}".format(data_set))
-        input_data = input_data.values() if type(input_data) != list else input_data
-
+        # We want to loop backwards through the computed values to
+        # propagate the errors
         value_set_index = len(computed_values) - 1
-        # print("Calculate error for the output layer {0}".format(
-        #     value_set_index + 1))
         layer_value_set = computed_values[value_set_index]
         prev_layer_value_set = computed_values[value_set_index - 1]
 
-        # Calculate errors for each layer, and the total error
-        total_error = 0
-        errors = []
+        # Calculate the delta for each node value
         for node_value_index in range(0, len(layer_value_set)):
-            # print("	-->	node: {0}".format(node_value_index))
-            difference, error = calculate_error(
-                output_data[node_value_index], layer_value_set[node_value_index])
-            errors.append([difference, error])
+            if DEBUG:
+                print("	-->	node: {0}".format(node_value_index))
+
+            actual_value = output_data[node_value_index]
+            computed_value = layer_value_set[node_value_index]
+
+            error = calculate_error(actual_value, computed_value)
             total_error = total_error + error
 
-        # Calculate the delta for each node value
-        # print("TOTAL Error = {0}".format(total_error))
-        for node_value_index in range(0, len(errors)):
-            # print("	-->	node: {0}".format(node_value_index))
-            # First take the negative difference between the computed and expected values
-            first_multiplier = -errors[node_value_index][0]
-            # Next multiply the current node value by (1 - itself)
-            computed_node_value = layer_value_set[node_value_index]
-            second_multiplier = computed_node_value * \
-                (1 - computed_node_value)
-            # Finally compute the change in the current node value with respect to the weight
-            # of each of the nodes in the previous layer
-            propagated_hidden_layer_values = []
-            for prev_node_value_index in range(0, len(prev_layer_value_set)):
-                third_multiplier = prev_layer_value_set[prev_node_value_index]
-                delta_value = first_multiplier * second_multiplier * third_multiplier
-                # print("                 Result for current node {0}, prev node {1}: {2}"
-                #       .format(node_value_index, prev_node_value_index, delta_value))
-                weight_ref = self.output_nodes[node_value_index].weights[prev_node_value_index]
-                # print("                   {0}".format(weight_ref))
+            E_total_over_out_h = self.propagate_output_layer(
+                node_value_index, actual_value, computed_value, prev_layer_value_set)
 
-                propagated_hidden_layer_values.append(first_multiplier *
-                                                      second_multiplier * weight_ref.value)
+            self.propagate_hidden_layers(
+                value_set_index, prev_layer_value_set, input_data, E_total_over_out_h)
 
-                weight_ref.value = weight_ref.value - LEARNING_RATE * delta_value
-                # print("                   NEW {0}".format(weight_ref))
+        if (self.iteration_index % 1000 == 0):
+            print("TOTAL ERROR: {0}".format(total_error))
 
-            E_total_over_out_h = 0
-            for propagated_value in propagated_hidden_layer_values:
-                E_total_over_out_h = E_total_over_out_h + propagated_value
+    def propagate_output_layer(self, node_value_index, actual_value, computed_value, prev_layer_value_set):
+        '''
+            This is the first step in backward propagation.
+            Reassign a new weight to the output nodes based on
+            the partial derivative of the total error WRT the current weight.
 
-            for prev_node_value_index in range(0, len(prev_layer_value_set)):
-                prev_node_value = prev_layer_value_set[prev_node_value_index]
-                out_h_over_net_h = prev_node_value * (1 - prev_node_value)
-                for input_value_index in range(0, len(input_data)):
-                    E_total_over_weight = E_total_over_out_h * \
-                        out_h_over_net_h * input_data[input_value_index]
-                    weight_ref = self.inner_layers[value_set_index -
-                                                   1][prev_node_value_index].weights[input_value_index].value
-                    weight_ref = weight_ref - LEARNING_RATE * E_total_over_weight
+            @return: the sum of the partial derivatives of the output layer
+        '''
+        total = 0
 
-    def calculate_node_value(self, node, previous_layer_values):
-        # Calculate the node value
-        calculated_node_value = 0
-        # print("START NODE: {0}".format(node.identifier))
-        # print("		bias for node {0}: {1}".format(node.identifier, node.bias))
-        # print("		weights for node {0}:".format(node.identifier))
-        for weight in node.weights:
-            input_value = previous_layer_values[weight.starting_node_index]
-            # print("			input value: {0}, weight: {1}".format(
-            #     input_value, weight.value))
-            calculated_node_value = calculated_node_value + \
-                (input_value * weight.value)
-        calculated_node_value = calculated_node_value + node.bias
-        # print("		node value for node {0}: {1}".format(
-        #     node.identifier, calculated_node_value))
-        # Run the node value through the activation function
-        calculated_node_value = activation_function(calculated_node_value)
-        # print("		sigmoid the node value: {0}".format(calculated_node_value))
-        return calculated_node_value
+        # First take the negative difference between the computed and expected values
+        first_multiplier = -(actual_value - computed_value)
+        # Next multiply the current node value by (1 - itself)
+        second_multiplier = computed_value * (1 - computed_value)
+        # Finally compute the change in the current node value WRT the weight
+        # of each of the nodes in the previous layer
+        for prev_node_value_index in range(0, len(prev_layer_value_set)):
+            third_multiplier = prev_layer_value_set[prev_node_value_index]
+            delta_value = first_multiplier * second_multiplier * third_multiplier
+
+            if DEBUG:
+                print("                 Result for current node {0}, prev node {1}: {2}"
+                      .format(node_value_index, prev_node_value_index, delta_value))
+
+            weight_ref = self.output_nodes[node_value_index].weights[prev_node_value_index]
+
+            if DEBUG:
+                print("                   {0}".format(weight_ref))
+
+            total = total + (first_multiplier *
+                             second_multiplier * weight_ref.value)
+
+            weight_ref.value = weight_ref.value - LEARNING_RATE * delta_value
+
+            if DEBUG:
+                print("                   NEW {0}".format(weight_ref))
+
+        return total
+
+    def propagate_hidden_layers(self, value_set_index, prev_layer_value_set, input_data, E_total_over_out_h):
+        '''
+            Propagate the error through the hidden layers of the
+            system and adjust weights accordingly
+        '''
+        for prev_node_value_index in range(0, len(prev_layer_value_set)):
+            prev_node_value = prev_layer_value_set[prev_node_value_index]
+            out_h_over_net_h = prev_node_value * (1 - prev_node_value)
+            for input_value_index in range(0, len(input_data)):
+                E_total_over_weight = E_total_over_out_h * \
+                    out_h_over_net_h * input_data[input_value_index]
+                weight_ref = self.inner_layers[value_set_index -
+                                               1][prev_node_value_index].weights[input_value_index]
+                weight_ref.value = weight_ref.value - LEARNING_RATE * E_total_over_weight

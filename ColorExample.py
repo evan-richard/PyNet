@@ -1,3 +1,9 @@
+'''
+    ColorExample.py
+
+    An example implementation of the neural network.
+'''
+
 from Brain import Brain
 from config import SAMPLE_ITERATIONS
 

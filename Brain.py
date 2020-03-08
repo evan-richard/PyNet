@@ -1,3 +1,11 @@
+'''
+    Brain.py
+
+    Used to prototype a neural network
+    implementation in Python that will be 
+    later translated to C code for performance.
+'''
+
 import sys
 import random
 import math
@@ -90,6 +98,7 @@ def calculate_node_value(node, previous_layer_values):
 
         calculated_node_value = calculated_node_value + \
             (input_value * weight.value)
+
     calculated_node_value = calculated_node_value + node.bias
 
     if DEBUG:
@@ -111,11 +120,12 @@ class NeuralNode:
         neural network.
     '''
 
-    def __init__(self, layer, identifier, node_type):
+    def __init__(self, layer, identifier, node_type, test_biases):
         self.layer = layer
         self.identifier = identifier
         self.node_type = node_type
-        self.bias = random_value()
+        self.bias = test_biases[layer -
+                                1][identifier] if test_biases else random_value()
         self.weights = []
 
     def __str__(self):
@@ -127,10 +137,11 @@ class Weight:
         Class representing the weight between two nodes.
     '''
 
-    def __init__(self, starting_node_index, ending_node_index):
+    def __init__(self, starting_node_index, ending_node_index, test_weights=None):
         self.starting_node_index = starting_node_index
         self.ending_node_index = ending_node_index
-        self.value = random_value()
+        self.value = test_weights[ending_node_index][starting_node_index] if test_weights else random_value(
+        )
 
     def __str__(self):
         return 'Weight for {0}-{1}: {2}'.format(self.starting_node_index, self.ending_node_index, self.value)
@@ -156,8 +167,11 @@ class Brain:
         self.num_inner_layer_nodes = 0
         # whether or not the network is trained
         self.is_trained = False
+        # learning rate of the neural network
+        self.learning_rate = LEARNING_RATE
         # DEBUG
         self.iteration_index = 0
+        self.test_values = None
 
     def run(self, data_set):
         '''
@@ -183,12 +197,14 @@ class Brain:
             self.reset()
 
         iterations = kwargs.get('iterations', 1)
+        self.learning_rate = kwargs.get('learning_rate', LEARNING_RATE)
+        self.test_values = kwargs.get('test_values', None)
 
         # Calculate the number of nodes in the hidden layer
         self.num_input_nodes, self.num_output_nodes = count_nodes(
             training_data)
-        self.num_inner_layer_nodes = nodes_in_inner_layer(
-            self.num_input_nodes, self.num_output_nodes)
+        self.num_inner_layer_nodes = self.test_values['num_inner_layer_nodes'] if self.test_values\
+            else nodes_in_inner_layer(self.num_input_nodes, self.num_output_nodes)
 
         self.initialize_hidden_layers()
         self.initialize_output_layer()
@@ -217,6 +233,7 @@ class Brain:
             self.num_output_nodes = 0
             self.num_inner_layer_nodes = 0
             self.is_trained = False
+            self.learning_rate = LEARNING_RATE
             # DEBUG
             self.iteration_index = 0
 
@@ -233,12 +250,12 @@ class Brain:
             for inner_node_index in range(0, self.num_inner_layer_nodes):
                 # Create the inner layer node
                 node = NeuralNode(inner_layer_index + 1,
-                                  inner_node_index, NODE_TYPES['INNER'])
+                                  inner_node_index, NODE_TYPES['INNER'], self.test_values['biases'] if self.test_values else None)
                 nodes_per_layer = self.num_input_nodes if inner_layer_index == 0 else self.num_inner_layer_nodes
                 for input_node_index in range(0, nodes_per_layer):
                     # Create initial weights to the inner layer node
                     node.weights.append(
-                        Weight(input_node_index, inner_node_index))
+                        Weight(input_node_index, inner_node_index, self.test_values['weights'][inner_layer_index] if self.test_values else None))
                 # Append the node to the current layer
                 self.inner_layers[inner_layer_index].append(node)
 
@@ -250,11 +267,11 @@ class Brain:
         for output_node_index in range(0, self.num_output_nodes):
             # Create the output node
             node = NeuralNode(NUM_HIDDEN_LAYERS + 1,
-                              output_node_index, NODE_TYPES['OUTPUT'])
+                              output_node_index, NODE_TYPES['OUTPUT'], self.test_values['biases'] if self.test_values else None)
             # Create initial weights to the output layer node
             for inner_node_index in range(0, self.num_inner_layer_nodes):
                 node.weights.append(
-                    Weight(inner_node_index, output_node_index))
+                    Weight(inner_node_index, output_node_index, self.test_values['weights'][NUM_HIDDEN_LAYERS] if self.test_values else None))
             # Append the node to the list of output nodes
             self.output_nodes.append(node)
 
@@ -339,7 +356,7 @@ class Brain:
         # Calculate the delta for each node value
         for node_value_index in range(0, len(layer_value_set)):
             if DEBUG:
-                print("	-->	node: {0}".format(node_value_index))
+                print("-->	node: {0}".format(node_value_index))
 
             actual_value = output_data[node_value_index]
             computed_value = layer_value_set[node_value_index]
@@ -353,7 +370,7 @@ class Brain:
             self.propagate_hidden_layers(
                 value_set_index, prev_layer_value_set, input_data, E_total_over_out_h)
 
-        if (self.iteration_index % 1000 == 0):
+        if (DEBUG or (self.iteration_index % 1000 == 0)):
             print("TOTAL ERROR: {0}".format(total_error))
 
     def propagate_output_layer(self, node_value_index, actual_value, computed_value, prev_layer_value_set):
@@ -374,6 +391,10 @@ class Brain:
         # of each of the nodes in the previous layer
         for prev_node_value_index in range(0, len(prev_layer_value_set)):
             third_multiplier = prev_layer_value_set[prev_node_value_index]
+            if DEBUG:
+                print("                 Output values: {0}, {1}, {2}".format(
+                    first_multiplier, second_multiplier, third_multiplier))
+
             delta_value = first_multiplier * second_multiplier * third_multiplier
 
             if DEBUG:
@@ -388,7 +409,7 @@ class Brain:
             total = total + (first_multiplier *
                              second_multiplier * weight_ref.value)
 
-            weight_ref.value = weight_ref.value - LEARNING_RATE * delta_value
+            weight_ref.value = weight_ref.value - self.learning_rate * delta_value
 
             if DEBUG:
                 print("                   NEW {0}".format(weight_ref))
@@ -408,4 +429,11 @@ class Brain:
                     out_h_over_net_h * input_data[input_value_index]
                 weight_ref = self.inner_layers[value_set_index -
                                                1][prev_node_value_index].weights[input_value_index]
-                weight_ref.value = weight_ref.value - LEARNING_RATE * E_total_over_weight
+
+                if DEBUG:
+                    print("                   {0}".format(weight_ref))
+
+                weight_ref.value = weight_ref.value - self.learning_rate * E_total_over_weight
+
+                if DEBUG:
+                    print("                   NEW {0}".format(weight_ref))

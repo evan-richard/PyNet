@@ -19,18 +19,13 @@ def build_theme_id(props):
         + hex_to_rgb(props.get("--foreground-tertiary"))
         + hex_to_rgb(props.get("--background-default"))
         + hex_to_rgb(props.get("--background-secondary"))
-        + hex_to_rgb(props.get("--background-tertiary"))
         + hex_to_rgb(props.get("--primary-default"))
-        + hex_to_rgb(props.get("--primary-dark"))
-        + hex_to_rgb(props.get("--primary-light"))
         + hex_to_rgb(props.get("--error-default"))
-        + hex_to_rgb(props.get("--error-dark"))
-        + hex_to_rgb(props.get("--error-light"))
     )
 
 
 def run_sample_themes(brain):
-    number_of_colors = 12
+    number_of_colors = 7
     rgb_per_color = 3
     sample_size = 10000
     results = []
@@ -58,19 +53,11 @@ def rgb_to_theme(rgb_lst):
                     "--foreground-default": "#%02x%02x%02x" % (rgb[0], rgb[1], rgb[2]),
                     "--foreground-secondary": "#%02x%02x%02x"
                     % (rgb[3], rgb[4], rgb[5]),
-                    "--foreground-tertiary": "#%02x%02x%02x" % (rgb[6], rgb[7], rgb[8]),
-                    "--background-default": "#%02x%02x%02x"
-                    % (rgb[9], rgb[10], rgb[11]),
+                    "--background-default": "#%02x%02x%02x" % (rgb[6], rgb[7], rgb[8]),
                     "--background-secondary": "#%02x%02x%02x"
-                    % (rgb[12], rgb[13], rgb[14]),
-                    "--background-tertiary": "#%02x%02x%02x"
-                    % (rgb[15], rgb[16], rgb[17]),
-                    "--primary-default": "#%02x%02x%02x" % (rgb[18], rgb[19], rgb[20]),
-                    "--primary-dark": "#%02x%02x%02x" % (rgb[21], rgb[22], rgb[23]),
-                    "--primary-light": "#%02x%02x%02x" % (rgb[24], rgb[25], rgb[26]),
-                    "--error-default": "#%02x%02x%02x" % (rgb[27], rgb[28], rgb[29]),
-                    "--error-dark": "#%02x%02x%02x" % (rgb[30], rgb[31], rgb[32]),
-                    "--error-light": "#%02x%02x%02x" % (rgb[33], rgb[34], rgb[35]),
+                    % (rgb[9], rgb[10], rgb[11]),
+                    "--primary-default": "#%02x%02x%02x" % (rgb[12], rgb[13], rgb[14]),
+                    "--error-default": "#%02x%02x%02x" % (rgb[15], rgb[16], rgb[17]),
                 }
             }
         )

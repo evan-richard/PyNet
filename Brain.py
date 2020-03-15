@@ -231,8 +231,8 @@ class Brain:
         for i in range(1, iterations + 1):
             # DEBUG
             self.iteration_index = i
-            if self.iteration_index % 1000 == 0:
-                print("\n===============ITERATION {0}===============".format(i))
+            # if self.iteration_index % 1000 == 0:
+            #     print("\n===============ITERATION {0}===============".format(i))
             for data_set in training_data:
                 computed_values = self.train_data_set(data_set)
                 self.propagate_error(data_set, computed_values)
@@ -420,8 +420,8 @@ class Brain:
                 value_set_index, prev_layer_value_set, input_data, E_total_over_out_h
             )
 
-        if DEBUG or (self.iteration_index % 1000 == 0):
-            print("TOTAL ERROR: {0}".format(total_error))
+        # if DEBUG or (self.iteration_index % 1000 == 0):
+        #     print("TOTAL ERROR: {0}".format(total_error))
 
     def propagate_output_layer(
         self, node_value_index, actual_value, computed_value, prev_layer_value_set

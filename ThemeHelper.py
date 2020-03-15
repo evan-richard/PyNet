@@ -12,8 +12,7 @@ def hex_to_rgb(hexString):
     ]
 
 
-def build_theme_id(theme):
-    props = theme.get("properties")
+def build_theme_id(props):
     return (
         hex_to_rgb(props.get("--foreground-default"))
         + hex_to_rgb(props.get("--foreground-secondary"))

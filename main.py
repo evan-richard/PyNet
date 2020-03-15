@@ -25,9 +25,8 @@ def train_theme_data():
     data_set_lst = []
     # Build training data
     theme_list = list(body.get("data", []))
-    print(theme_list)
     for theme_data in theme_list:
-        theme_id_lst = build_theme_id(theme_data.get("theme"))
+        theme_id_lst = build_theme_id(theme_data.get("properties"))
         data_set = {
             "input": theme_id_lst,
             "output": [round(int(theme_data.get("score")) / 4, 4)],
